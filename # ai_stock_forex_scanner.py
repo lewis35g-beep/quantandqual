@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
+import streamlit as st
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -326,11 +327,83 @@ def scan_symbol(user_symbol):
 
 
 def main():
-    symbols = input("Enter stocks or forex pairs separated by commas: ")
-    symbol_list = symbols.split(",")
+    st.set_page_config(page_title="AI Stock & Forex Scanner", layout="wide")
 
-    for symbol in symbol_list:
-        scan_symbol(symbol.strip())
+    st.title("AI Stock & Forex Quant + Qual Scanner")
+
+    symbols = st.text_input(
+        "Enter stocks or forex pairs separated by commas",
+        value="AAPL, NVDA, EURUSD"
+    )
+
+    run_scan = st.button("Run Scanner")
+
+    if run_scan:
+        symbol_list = symbols.split(",")
+
+        for symbol in symbol_list:
+            symbol = symbol.strip()
+
+            if symbol:
+                st.divider()
+                st.subheader(f"Scan Result: {symbol.upper()}")
+
+                clean_symbol, asset_type = clean_ticker(symbol)
+                data = get_market_data(clean_symbol, asset_type)
+
+                if data.empty:
+                    st.error(f"No data found for {symbol}")
+                    continue
+
+                technical = technical_analysis(data)
+
+                if asset_type == "stock":
+                    qualitative = stock_fundamental_analysis(clean_symbol)
+                    total_score = technical["score"] + qualitative["score"]
+                else:
+                    qualitative = forex_qual_analysis(clean_symbol)
+                    total_score = technical["score"]
+
+                rating = final_rating(total_score)
+
+                st.write(f"**Asset Type:** {asset_type.upper()}")
+                st.write(f"**Price:** {technical['price']}")
+                st.write(f"**RSI:** {technical['rsi']}")
+                st.write(f"**EMA20:** {technical['ema20']}")
+                st.write(f"**EMA50:** {technical['ema50']}")
+                st.write(f"**EMA200:** {technical['ema200']}")
+                st.write(f"**Technical Score:** {technical['score']}")
+                st.write(f"**Final Rating:** {rating}")
+
+                st.write("### Technical Notes")
+                for note in technical["notes"]:
+                    st.write(f"- {note}")
+
+                st.write("### Qualitative Analysis")
+                if asset_type == "stock":
+                    st.write(f"**Company:** {qualitative['company']}")
+                    st.write(f"**Sector:** {qualitative['sector']}")
+                    st.write(f"**Industry:** {qualitative['industry']}")
+                    st.write(f"**P/E:** {qualitative['pe']}")
+                    st.write(f"**Revenue Growth:** {qualitative['revenue_growth']}")
+                    st.write(f"**Profit Margin:** {qualitative['profit_margin']}")
+                    st.write(f"**Debt to Equity:** {qualitative['debt_to_equity']}")
+                else:
+                    for note in qualitative["macro_notes"]:
+                        st.write(f"- {note}")
+
+                st.write("### AI Market Analysis")
+                with st.spinner("Generating AI analysis..."):
+                    try:
+                        ai_summary = ai_analysis(symbol.upper(), asset_type, technical, qualitative)
+                        st.write(ai_summary)
+                    except Exception as e:
+                        st.error("AI analysis failed. Check your OpenAI API key.")
+                        st.write(e)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":

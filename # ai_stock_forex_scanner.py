@@ -331,12 +331,13 @@ def main():
 
     st.title("AI Stock & Forex Quant + Qual Scanner")
 
-    symbols = st.text_input(
-        "Enter stocks or forex pairs separated by commas",
-        value="AAPL, NVDA, EURUSD"
-    )
+symbols = st.text_input(
+    "Enter stocks or forex pairs separated by commas",
+    value="AAPL, NVDA, EURUSD",
+    key="main_symbol_input"
+)
 
-    run_scan = st.button("Run Scanner")
+    run_scan = st.button("Run Scanner", key="run_scanner_button")
 
     if run_scan:
         symbol_list = symbols.split(",")

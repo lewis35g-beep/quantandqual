@@ -125,72 +125,110 @@ def technical_analysis(data):
 
 
 def stock_fundamental_analysis(symbol):
-    stock = yf.Ticker(symbol)
-    info = stock.info
+    try:
+        stock = yf.Ticker(symbol)
 
-    score = 0
-    notes = []
+        try:
+            fast_info = stock.fast_info
+        except Exception:
+            fast_info = {}
 
-    pe = info.get("trailingPE")
-    forward_pe = info.get("forwardPE")
-    profit_margin = info.get("profitMargins")
-    revenue_growth = info.get("revenueGrowth")
-    debt_to_equity = info.get("debtToEquity")
-    recommendation = info.get("recommendationKey")
+        info = {}
 
-    if revenue_growth is not None:
-        if revenue_growth > 0.10:
-            score += 2
-            notes.append("Revenue growth is strong.")
-        elif revenue_growth > 0:
-            score += 1
-            notes.append("Revenue growth is positive.")
+        try:
+            info = stock.get_info()
+        except Exception:
+            info = {}
+
+        score = 0
+        notes = []
+
+        pe = info.get("trailingPE")
+        forward_pe = info.get("forwardPE")
+        profit_margin = info.get("profitMargins")
+        revenue_growth = info.get("revenueGrowth")
+        debt_to_equity = info.get("debtToEquity")
+        recommendation = info.get("recommendationKey")
+
+        if revenue_growth is not None:
+            if revenue_growth > 0.10:
+                score += 2
+                notes.append("Revenue growth is strong.")
+            elif revenue_growth > 0:
+                score += 1
+                notes.append("Revenue growth is positive.")
+            else:
+                score -= 1
+                notes.append("Revenue growth is weak or negative.")
         else:
-            score -= 1
-            notes.append("Revenue growth is weak or negative.")
+            notes.append("Revenue growth unavailable due to Yahoo rate limits.")
 
-    if profit_margin is not None:
-        if profit_margin > 0.15:
-            score += 2
-            notes.append("Profit margins are strong.")
-        elif profit_margin > 0:
-            score += 1
-            notes.append("Company is profitable.")
+        if profit_margin is not None:
+            if profit_margin > 0.15:
+                score += 2
+                notes.append("Profit margins are strong.")
+            elif profit_margin > 0:
+                score += 1
+                notes.append("Company is profitable.")
+            else:
+                score -= 2
+                notes.append("Company has negative profit margins.")
         else:
-            score -= 2
-            notes.append("Company has negative profit margins.")
+            notes.append("Profit margin unavailable due to Yahoo rate limits.")
 
-    if pe is not None:
-        if pe < 25:
-            score += 1
-            notes.append("P/E valuation appears reasonable.")
-        elif pe > 60:
-            score -= 1
-            notes.append("P/E valuation appears expensive.")
-
-    if debt_to_equity is not None:
-        if debt_to_equity < 100:
-            score += 1
-            notes.append("Debt level appears manageable.")
+        if pe is not None:
+            if pe < 25:
+                score += 1
+                notes.append("P/E valuation appears reasonable.")
+            elif pe > 60:
+                score -= 1
+                notes.append("P/E valuation appears expensive.")
         else:
-            score -= 1
-            notes.append("Debt level appears elevated.")
+            notes.append("P/E unavailable due to Yahoo rate limits.")
 
-    return {
-        "company": info.get("longName", symbol),
-        "sector": info.get("sector", "N/A"),
-        "industry": info.get("industry", "N/A"),
-        "market_cap": info.get("marketCap"),
-        "pe": pe,
-        "forward_pe": forward_pe,
-        "profit_margin": profit_margin,
-        "revenue_growth": revenue_growth,
-        "debt_to_equity": debt_to_equity,
-        "recommendation": recommendation,
-        "score": score,
-        "notes": notes
-    }
+        if debt_to_equity is not None:
+            if debt_to_equity < 100:
+                score += 1
+                notes.append("Debt level appears manageable.")
+            else:
+                score -= 1
+                notes.append("Debt level appears elevated.")
+        else:
+            notes.append("Debt-to-equity unavailable due to Yahoo rate limits.")
 
+        return {
+            "company": info.get("longName", symbol),
+            "sector": info.get("sector", "N/A"),
+            "industry": info.get("industry", "N/A"),
+            "market_cap": info.get("marketCap", getattr(fast_info, "market_cap", None)),
+            "pe": pe,
+            "forward_pe": forward_pe,
+            "profit_margin": profit_margin,
+            "revenue_growth": revenue_growth,
+            "debt_to_equity": debt_to_equity,
+            "recommendation": recommendation,
+            "score": score,
+            "notes": notes
+        }
+
+    except Exception as e:
+        return {
+            "company": symbol,
+            "sector": "N/A",
+            "industry": "N/A",
+            "market_cap": None,
+            "pe": None,
+            "forward_pe": None,
+            "profit_margin": None,
+            "revenue_growth": None,
+            "debt_to_equity": None,
+            "recommendation": None,
+            "score": 0,
+            "notes": [
+                "Fundamental data unavailable right now because Yahoo Finance rate-limited the request.",
+                "The scanner will continue using technical and AI analysis only."
+            ]
+        }
 
 def forex_qual_analysis(symbol):
     return {
